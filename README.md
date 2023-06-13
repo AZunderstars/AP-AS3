@@ -1,6 +1,6 @@
-# AP-AS1
+# AP-AS3
 
-First assignment for Advanced Programming course.
+Third assignment for Advanced Programming course.
 
 Makes schedules for translators for different languages in events.
 
