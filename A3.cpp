@@ -13,7 +13,6 @@ const int FIRST_MINUTE_CHAR = 3;
 const char ZERO_CHARACTER = '0';
 const char NULL_CHARACTER = '\0';
 const char ENTER_CHARACTER = '\n';
-const string NO_TRANSLATOR_FOUND = "Not Found";
 
 typedef vector<string> Names;
 
@@ -33,6 +32,8 @@ typedef struct Translator
     Names languages;
 } Translator;
 
+const Translator NO_TRANSLATOR_FOUND{"Not Found"};
+
 typedef vector<Translator> Translators;
 
 typedef struct Event
@@ -46,6 +47,11 @@ typedef struct Event
 
 typedef vector<Event> Events;
 
+bool compare_translator_names(Translator a, Translator b)
+{
+    return a.name < b.name;
+}
+
 int char_to_int(char c)
 {
     int result = c - ZERO_CHARACTER;
@@ -56,9 +62,7 @@ int string_to_num(string str)
 {
     int result = 0;
     for (int i = 0; i < str.size(); i++)
-    {
         result = result * 10 + char_to_int(str[i]);
-    }
     return result;
 }
 
@@ -172,7 +176,7 @@ Names find_remaining_languages(Translators translators, Event event)
     Names remaining_languages;
     for (int i = 0; i < event.languages.size(); i++)
     {
-        if (event.translators[i] == EMPTY_STRING && event.translators[i] != NO_TRANSLATOR_FOUND)
+        if (event.translators[i] == EMPTY_STRING && event.translators[i] != NO_TRANSLATOR_FOUND.name)
             remaining_languages.push_back(event.languages[i]);
     }
     return remaining_languages;
@@ -285,22 +289,19 @@ Translators knows_fewer_languages(Translators translators)
     return fewer_languages;
 }
 
-string sort_alphabetic(Translators translators)
+Translator find_first_alphabetically(Translators translators)
 {
     if (translators.size() == 0)
         return NO_TRANSLATOR_FOUND;
-    Names translator_names;
-    for (int i = 0; i < translators.size(); i++)
-        translator_names.push_back(translators[i].name);
-    sort(translator_names.begin(), translator_names.end());
-    return translator_names[0];
+    sort(translators.begin(), translators.end(), compare_translator_names);
+    return translators[0];
 }
 
-string find_translator(Translators translators, string language, Time start_time, Time end_time)
+Translator find_translator(Translators translators, string language, Time start_time, Time end_time)
 {
     Translators capable_translators = find_capable_translators(translators, language, start_time, end_time);
     Translators fewer_languages = knows_fewer_languages(capable_translators);
-    return sort_alphabetic(fewer_languages);
+    return find_first_alphabetically(fewer_languages);
 }
 
 int find_translator_index(Translators translators, string translator_name)
@@ -373,14 +374,13 @@ void add_delete_times(Translator &translator, Time event_start_time, Time event_
     }
 }
 
-void change_free_time(Translators &translators, string translator_name, Time start_time, Time end_time)
+void change_free_time(Translators &translators, Translator translator, Time start_time, Time end_time)
 {
-    if (translator_name == NO_TRANSLATOR_FOUND)
+    if (translator.name == NO_TRANSLATOR_FOUND.name)
         return;
-    int translator_index = find_translator_index(translators, translator_name);
     Times new_start_times, new_end_times;
-    generate_new_times(translators[translator_index], start_time, end_time, new_start_times, new_end_times);
-    add_delete_times(translators[translator_index], start_time, end_time, new_start_times, new_end_times);
+    generate_new_times(translator, start_time, end_time, new_start_times, new_end_times);
+    add_delete_times(translator, start_time, end_time, new_start_times, new_end_times);
 }
 
 int find_language_index(Event event, string language)
@@ -399,19 +399,17 @@ void arrange_event(Translators &translators, Event &event)
     for (int i = 0; i < event.languages.size(); i++)
     {
         string language = find_language(translators, event);
-        string translator_name = find_translator(translators, language, event.start_time, event.end_time);
+        Translator translator = find_translator(translators, language, event.start_time, event.end_time);
         int language_index = find_language_index(event, language);
-        event.translators[language_index] = translator_name;
-        change_free_time(translators, translator_name, event.start_time, event.end_time);
+        event.translators[language_index] = translator.name;
+        change_free_time(translators, translator, event.start_time, event.end_time);
     }
 }
 
 void plan_events(Translators &translators, Events &events)
 {
     for (int i = 0; i < events.size(); i++)
-    {
         arrange_event(translators, events[i]);
-    }
 }
 
 void print_results(Events events)
@@ -420,9 +418,7 @@ void print_results(Events events)
     {
         cout << events[event_count].name << endl;
         for (int i = 0; i < events[event_count].languages.size(); i++)
-        {
             cout << events[event_count].languages[i] << OUTPUT_SEPERATOR << events[event_count].translators[i] << endl;
-        }
     }
 }
 
