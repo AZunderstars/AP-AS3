@@ -13,12 +13,12 @@ then
     for i in $( seq 1 $total )
     do
         ./a.out ./$i.in > judge.out
-        cmp -s $i.out $i.ans 
+        cmp -s judge.out $i.ans 
         if [ $? -eq 1 ];
         then   
             wrong=$((wrong+1))
             echo "test number $i: " >> results.txt
-            diff $i.out $i.ans >> results.txt
+            diff judge.out $i.ans >> results.txt
             echo "________________________________" >> results.txt
         fi
     done
