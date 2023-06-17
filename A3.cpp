@@ -22,13 +22,18 @@ typedef struct Time
     int minute;
 } Time;
 
-typedef vector<Time> Times;
+typedef struct Time_range
+{
+    Time start;
+    Time end;
+} Time_range;
+
+typedef vector<Time_range> Time_ranges;
 
 typedef struct Translator
 {
     string name;
-    Times start_times;
-    Times end_times;
+    Time_ranges time_ranges;
     Names languages;
 } Translator;
 
@@ -39,8 +44,7 @@ typedef vector<Translator> Translators;
 typedef struct Event
 {
     string name;
-    Time start_time;
-    Time end_time;
+    Time_range time_range;
     Names languages;
     Names translators;
 } Event;
@@ -106,8 +110,8 @@ Translator link_translator_data(vector<string> data)
 {
     Translator translator;
     translator.name = data[0];
-    translator.start_times.push_back(string_to_time(data[1]));
-    translator.end_times.push_back(string_to_time(data[2]));
+    Time_range time_range = {string_to_time(data[1]), string_to_time(data[2])};
+    translator.time_ranges.push_back(time_range);
     for (int i = 3; i < data.size(); i++)
         translator.languages.push_back(data[i]);
     return translator;
@@ -135,8 +139,7 @@ Event link_event_data(vector<string> data)
 {
     Event event;
     event.name = data[0];
-    event.start_time = string_to_time(data[1]);
-    event.end_time = string_to_time(data[2]);
+    event.time_range = {string_to_time(data[1]), string_to_time(data[2])};
     for (int i = 3; i < data.size(); i++)
     {
         event.languages.push_back(data[i]);
@@ -230,35 +233,33 @@ int time_to_min(Time time)
     return time.hour * 60 + time.minute;
 }
 
-bool capable_time(Time translator_start, Time translator_end, Time event_start, Time event_end)
+bool capable_time(Time_range translator_time_range, Time_range event_time_range)
 {
-    if (time_to_min(translator_start) <= time_to_min(event_start) && time_to_min(translator_end) >= time_to_min(event_end))
-        return true;
-    else
-        return false;
+    return time_to_min(translator_time_range.start) <= time_to_min(event_time_range.start) &&
+           time_to_min(translator_time_range.end) >= time_to_min(event_time_range.end);
 }
 
-bool has_free_time(Translator translator, Time start_time, Time end_time)
+bool has_free_time(Translator translator, Time_range event_time_range)
 {
-    for (int i = 0; i < translator.start_times.size(); i++)
+    for (int i = 0; i < translator.time_ranges.size(); i++)
     {
-        if (capable_time(translator.start_times[i], translator.end_times[i], start_time, end_time))
+        if (capable_time(translator.time_ranges[i], event_time_range))
             return true;
     }
     return false;
 }
 
-bool is_translator_capable(Translator translator, string language, Time start_time, Time end_time)
+bool is_translator_capable(Translator translator, string language, Time_range event_time_range)
 {
-    return does_know_language(translator, language) && has_free_time(translator, start_time, end_time);
+    return does_know_language(translator, language) && has_free_time(translator, event_time_range);
 }
 
-Translators find_capable_translators(Translators translators, string language, Time start_time, Time end_time)
+Translators find_capable_translators(Translators translators, string language, Time_range event_time_range)
 {
     Translators capable_translators;
     for (int i = 0; i < translators.size(); i++)
     {
-        if (is_translator_capable(translators[i], language, start_time, end_time))
+        if (is_translator_capable(translators[i], language, event_time_range))
             capable_translators.push_back(translators[i]);
     }
     return capable_translators;
@@ -297,33 +298,36 @@ Translator find_first_alphabetically(Translators translators)
     return translators[0];
 }
 
-Translator find_translator(Translators translators, string language, Time start_time, Time end_time)
+Translator find_translator(Translators translators, string language, Time_range event_time_range)
 {
-    Translators capable_translators = find_capable_translators(translators, language, start_time, end_time);
+    Translators capable_translators = find_capable_translators(translators, language, event_time_range);
     Translators fewer_languages = knows_fewer_languages(capable_translators);
     return find_first_alphabetically(fewer_languages);
 }
 
-int find_translator_index(Translators translators, string translator_name)
+Translators update_translators(Translators translators, Translator updated_translator)
 {
-    int result_index;
+    if (updated_translator.name == NO_TRANSLATOR_FOUND.name)
+        return translators;
+    int translator_index;
     for (int i = 0; i < translators.size(); i++)
     {
-        if (translators[i].name == translator_name)
+        if (translators[i].name == updated_translator.name)
         {
-            result_index = i;
+            translator_index = i;
             break;
         }
     }
-    return result_index;
+    translators[translator_index] = updated_translator;
+    return translators;
 }
 
-int find_free_time(Translator translator, Time start_time, Time end_time)
+int find_free_time(Translator translator, Time_range event_time_ranges)
 {
     int result_index;
-    for (int i = 0; i < translator.start_times.size(); i++)
+    for (int i = 0; i < translator.time_ranges.size(); i++)
     {
-        if (capable_time(translator.start_times[i], translator.end_times[i], start_time, end_time))
+        if (capable_time(translator.time_ranges[i], event_time_ranges))
         {
             result_index = i;
             break;
@@ -334,53 +338,37 @@ int find_free_time(Translator translator, Time start_time, Time end_time)
 
 bool are_times_equal(Time time1, Time time2)
 {
-    if (time_to_min(time1) == time_to_min(time2))
-        return true;
-    else
-        return false;
+    return time_to_min(time1) == time_to_min(time2);
 }
 
-void add_to_new_times(Times &start_times, Times &end_times, Time new_start_time, Time new_end_time)
+Time_ranges add_to_time_ranges(Time_ranges time_ranges, Time_range new_time_range)
 {
-    if (!are_times_equal(new_start_time, new_end_time))
-    {
-        start_times.push_back(new_start_time);
-        end_times.push_back(new_end_time);
-    }
+    if (!are_times_equal(new_time_range.start, new_time_range.end))
+        time_ranges.push_back(new_time_range);
+    return time_ranges;
 }
 
-void generate_new_times(Translator translator, Time event_start_time, Time event_end_time, Times &start_times, Times &end_times)
+Time_ranges generate_new_times(Time_range translator_free_time, Time_range event_time_range)
 {
-    int free_time_index = find_free_time(translator, event_start_time, event_end_time);
-    Time new_start_time, new_end_time;
-    new_start_time = translator.start_times[free_time_index];
-    new_end_time = event_start_time;
-    add_to_new_times(start_times, end_times, new_start_time, new_end_time);
-    new_start_time = event_end_time;
-    new_end_time = translator.end_times[free_time_index];
-    add_to_new_times(start_times, end_times, new_start_time, new_end_time);
+    Time_ranges new_time_ranges;
+    Time_range new_free_time;
+    new_free_time.start = translator_free_time.start;
+    new_free_time.end = event_time_range.start;
+    new_time_ranges = add_to_time_ranges(new_time_ranges, new_free_time);
+    new_free_time.start = event_time_range.end;
+    new_free_time.end = translator_free_time.end;
+    new_time_ranges = add_to_time_ranges(new_time_ranges, new_free_time);
+    return new_time_ranges;
 }
 
-void add_delete_times(Translator &translator, Time event_start_time, Time event_end_time, Times start_times, Times end_times)
-{
-    int free_time_index = find_free_time(translator, event_start_time, event_end_time);
-
-    translator.start_times.erase(translator.start_times.begin() + free_time_index);
-    translator.end_times.erase(translator.end_times.begin() + free_time_index);
-    for (int i = 0; i < start_times.size(); i++)
-    {
-        translator.start_times.push_back(start_times[i]);
-        translator.end_times.push_back(end_times[i]);
-    }
-}
-
-void change_free_time(Translators &translators, Translator translator, Time start_time, Time end_time)
+void change_free_time(Translator &translator, Time_range event_time_range)
 {
     if (translator.name == NO_TRANSLATOR_FOUND.name)
         return;
-    Times new_start_times, new_end_times;
-    generate_new_times(translator, start_time, end_time, new_start_times, new_end_times);
-    add_delete_times(translator, start_time, end_time, new_start_times, new_end_times);
+    int free_time_index = find_free_time(translator, event_time_range);
+    Time_ranges new_time_ranges = generate_new_times(translator.time_ranges[free_time_index], event_time_range);
+    translator.time_ranges.erase(translator.time_ranges.begin() + free_time_index);
+    translator.time_ranges.insert(translator.time_ranges.end(), new_time_ranges.begin(), new_time_ranges.end());
 }
 
 int find_language_index(Event event, string language)
@@ -399,10 +387,11 @@ void arrange_event(Translators &translators, Event &event)
     for (int i = 0; i < event.languages.size(); i++)
     {
         string language = find_language(translators, event);
-        Translator translator = find_translator(translators, language, event.start_time, event.end_time);
+        Translator translator = find_translator(translators, language, event.time_range);
         int language_index = find_language_index(event, language);
         event.translators[language_index] = translator.name;
-        change_free_time(translators, translator, event.start_time, event.end_time);
+        change_free_time(translator, event.time_range);
+        translators = update_translators(translators, translator);
     }
 }
 

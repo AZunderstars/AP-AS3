@@ -1,4 +1,5 @@
-g++ A3*.cpp
+#!/bin/bash
+g++ A3.cpp
 
 if [ $? -eq 0 ];
 then
@@ -12,13 +13,13 @@ then
     wrong=0
     for i in $( seq 1 $total )
     do
-        ./a.out ./$i.in > judge.out
-        cmp -s judge.out $i.ans 
+        ./a.out ./tests/$i.in > judge.out
+        cmp -s judge.out ./tests/$i.ans 
         if [ $? -eq 1 ];
         then   
             wrong=$((wrong+1))
             echo "test number $i: " >> results.txt
-            diff judge.out $i.ans >> results.txt
+            diff judge.out ./tests/$i.ans >> results.txt
             echo "________________________________" >> results.txt
         fi
     done
