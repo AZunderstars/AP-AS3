@@ -210,10 +210,7 @@ bool is_more_suitable(string current_suitable, string language_check, Translator
 {
     int current_suitable_translators = count_translators(current_suitable, translators);
     int language_check_translators = count_translators(language_check, translators);
-    if (language_check_translators < current_suitable_translators)
-        return true;
-    else
-        return false;
+    return language_check_translators < current_suitable_translators;
 }
 
 string find_language(Translators translators, Event event)
